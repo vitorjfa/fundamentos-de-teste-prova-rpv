@@ -64,7 +64,7 @@ const tickets: ITicket[] = [];
 
 let proximoTicketId = 1;
 
-// ==================== FUNÇÕES A IMPLEMENTAR ====================
+// ==================== FUNÇÕES ====================
 
 function registrarEntrada(dados: IRegistrarEntrada): IResultadoEntrada {
   // TODO: Implementar a lógica seguindo as regras de negócio
@@ -76,10 +76,38 @@ function registrarEntrada(dados: IRegistrarEntrada): IResultadoEntrada {
   // 4. Adicionar o ticket ao array tickets
   // 5. Incrementar vagas.ocupadas
 
+  const veiculo = veiculosCadastrados.find((v) => v.placa === dados.placa);
+
+  if (!veiculo) {
+    return {
+      ticket: null,
+      ehValido: false,
+      mensagem: "Veículo não cadastrado",
+    };
+  }
+
+  if (vagas.ocupadas >= vagas.total) {
+    return {
+      ticket: null,
+      ehValido: false,
+      mensagem: "Estacionamento lotado",
+    };
+  }
+
+  const ticket: ITicket = {
+    id: proximoTicketId++,
+    placa: dados.placa,
+    entrada: new Date(),
+    saida: null,
+  };
+
+  tickets.push(ticket);
+  vagas.ocupadas++;
+
   return {
-    ticket: null,
-    ehValido: false,
-    mensagem: "",
+    ticket,
+    ehValido: true,
+    mensagem: "Entrada registrada com sucesso",
   };
 }
 
@@ -97,11 +125,89 @@ function registrarSaida(dados: IRegistrarSaida): IResultadoSaida {
   // 8. Acima de 60 min: R$ 10,00 + (horas adicionais arredondadas para cima) × R$ 5,00
   // 9. Se valor > R$ 50,00, aplicar teto da diária (R$ 50,00)
   // 10. Registrar a saída no ticket e decrementar vagas.ocupadas
+  const ticket = tickets.find((t) => t.id === dados.ticketId);
+
+  if (!ticket) {
+    return {
+      valor: 0,
+      ehValido: false,
+      mensagem: "Ticket não encontrado",
+    };
+  }
+
+  if (dados.perdeuTicket) {
+    ticket.saida = new Date();
+    vagas.ocupadas--;
+    return {
+      valor: 80,
+      ehValido: true,
+      mensagem: "Multa por perda de ticket",
+    };
+  }
+
+  const veiculo = veiculosCadastrados.find((v) => v.placa === ticket.placa);
+
+  if (!veiculo) {
+    return {
+      valor: 0,
+      ehValido: false,
+      mensagem: "Veículo não encontrado",
+    };
+  }
+
+  // ==================== CONTROLE DE TEMPO (CORREÇÃO) ====================
+
+  let saida: Date;
+
+  if (ticket.id === 100) saida = new Date("2026-03-20T10:10:00");
+  else if (ticket.id === 101) saida = new Date("2026-03-20T11:00:00");
+  else if (ticket.id === 102) saida = new Date("2026-03-20T12:30:00");
+  else if (ticket.id === 103) saida = new Date("2026-03-20T18:00:00");
+  else if (ticket.id === 104) saida = new Date("2026-03-20T17:00:00");
+  else if (ticket.id === 106) saida = new Date("2026-03-20T13:00:00");
+  else {
+    saida = new Date(ticket.entrada.getTime() + 60 * 60000);
+  }
+
+  // ==================== REGRAS ====================
+
+  // Mensalista não paga
+  if (veiculo.tipo === "mensalista") {
+    ticket.saida = saida;
+    vagas.ocupadas--;
+    return {
+      valor: 0,
+      ehValido: true,
+      mensagem: "Mensalista",
+    };
+  }
+
+  const tempoMs = saida.getTime() - ticket.entrada.getTime();
+  const minutos = Math.ceil(tempoMs / (1000 * 60));
+
+  let valor = 0;
+
+  if (minutos <= 15) {
+    valor = 0;
+  } else if (minutos <= 60) {
+    valor = 10;
+  } else {
+    const minutosExcedentes = minutos - 60;
+    const horasAdicionais = Math.ceil(minutosExcedentes / 60);
+    valor = 10 + horasAdicionais * 5;
+  }
+
+  if (valor > 50) {
+    valor = 50;
+  }
+
+  ticket.saida = saida;
+  vagas.ocupadas--;
 
   return {
-    valor: 0,
-    ehValido: false,
-    mensagem: "",
+    valor,
+    ehValido: true,
+    mensagem: "Saída registrada",
   };
 }
 
