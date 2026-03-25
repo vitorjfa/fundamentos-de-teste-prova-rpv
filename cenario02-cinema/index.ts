@@ -56,16 +56,20 @@ function comprarIngressos(compra: ICompraIngresso): IResultadoCompra {
   const ACRESCIMO_3D = 10.0;
 
   // TODO: Implementar a lógica seguindo as regras de negócio
-  //
   // Passos sugeridos:
-
   // 1. Buscar o filme pelo filmeId
+  // 2. Validar: máximo 6 espectadores, menores de 16 na sessão noite, classificação indicativa
+  // 3. Para cada espectador, calcular o valor do ingresso:
+  //    a. Valor base = R$ 40,00
+  //    b. Se terça-feira (diaSemana === 2): valor base *= 0.70 (30% desconto)
+  //    c. Se meia-entrada (estudante ou idade >= 60): valor *= 0.50
+  //    d. Se sessão 3D: valor += R$ 10,00
+
   const filme = filmes.find((f) => f.id === compra.filmeId);
   if (!filme) {
     return { valorTotal: 0, quantidadeIngressos: 0, ehValida: false };
   }
 
-  // 2. Validar: máximo 6 espectadores, menores de 16 na sessão noite, classificação indicativa
   if (
     !compra.espectadores ||
     compra.espectadores.length === 0 ||
@@ -84,33 +88,23 @@ function comprarIngressos(compra: ICompraIngresso): IResultadoCompra {
     return { valorTotal: 0, quantidadeIngressos: 0, ehValida: false };
   }
 
-  // 3. Para cada espectador, calcular o valor do ingresso:
-
   const valorTotal = compra.espectadores.reduce((total, espectador) => {
     let valorIngresso = VALOR_BASE;
 
-    // Regra Terça-feira (30% de desconto no valor base)
     if (compra.diaSemana === 2) {
       valorIngresso = valorIngresso * 0.7;
     }
 
-    // Regra Meia-entrada (estudante ou idoso 60+)
     if (espectador.ehEstudante || espectador.idade >= 60) {
       valorIngresso = valorIngresso * 0.5;
     }
 
-    // Regra Sessão 3D (acréscimo fixo)
     if (filme.eh3D) {
       valorIngresso = valorIngresso + ACRESCIMO_3D;
     }
-    // 4. Somar todos os ingressos
+
     return total + valorIngresso;
   }, 0);
-
-  //    a. Valor base = R$ 40,00
-  //    b. Se terça-feira (diaSemana === 2): valor base *= 0.70 (30% desconto)
-  //    c. Se meia-entrada (estudante ou idade >= 60): valor *= 0.50
-  //    d. Se sessão 3D: valor += R$ 10,00
 
   return {
     valorTotal,
